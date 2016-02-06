@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.nuevatel.mcsim</groupId>
+    <artifactId>mc.sim</artifactId>
+    <version>1.0-SNAPSHOT</version>
+  </parent>
+  
+  <artifactId>mc.sim-core</artifactId>
+  <name>core</name>
+  
+  <dependencies>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-all</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+    </dependency>
+    <!-- log4j dependencies -->
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+    </dependency>
+    <!-- local dependencies -->
+    <dependency>
+      <groupId>com.nuevatel</groupId>
+      <artifactId>common-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.nuevatel.common</groupId>
+      <artifactId>appconn</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.nuevatel.common</groupId>
+      <artifactId>wsconn</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.nuevatel.mc</groupId>
+      <artifactId>mc.common</artifactId>
+    </dependency>
+  </dependencies>
+</project>

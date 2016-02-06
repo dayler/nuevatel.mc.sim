@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.nuevatel.mcsim</groupId>
+    <artifactId>mc.sim</artifactId>
+    <version>1.0-SNAPSHOT</version>
+  </parent>
+  
+  <artifactId>mc.sim-server</artifactId>
+  <name>server</name>
+  <url>http://maven.apache.org</url>
+
+  <build>
+    <plugins>
+      <!-- indicates main function to execute. This plugin cannot be on Plugin Mng -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>1.3.2</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>java</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <includeProjectDependencies>true</includeProjectDependencies>
+          <includePluginDependencies>false</includePluginDependencies>
+          <executableDependency>
+            <groupId>com.nuevatel.mcsim.server</groupId>
+            <artifactId>server</artifactId>
+          </executableDependency>
+          <mainClass>com.nuevatel.mcsim.server.ServerApp</mainClass>
+        </configuration>
+      </plugin>
+      <!-- to generate jar. It is not input Plugins Mng -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <finalName>mc.sim-server-${project.version}</finalName>
+          <archive>
+            <manifest>
+              <addClasspath>true</addClasspath>
+              <classpathPrefix>lib/</classpathPrefix>
+              <mainClass>com.nuevatel.mcsim.server.ServerApp</mainClass>
+            </manifest>
+          </archive>
+          <outputDirectory>../build</outputDirectory>
+        </configuration>
+      </plugin>
+      <!-- generates distributable zip on package phase -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-assembly-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.nuevatel.mcsim</groupId>
+      <artifactId>mc.sim-core</artifactId>
+      <version>1.0-SNAPSHOT</version>
+    </dependency>
+  </dependencies>
+</project>
