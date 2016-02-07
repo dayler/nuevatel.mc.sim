@@ -22,6 +22,7 @@ import com.nuevatel.mc.appconn.SrifsmRet;
 import com.nuevatel.mc.appconn.SrifsmRetAsyncCall;
 import com.nuevatel.mcsim.domain.Action;
 
+import java.lang.reflect.Field;
 import java.util.StringJoiner;
 
 import static com.nuevatel.mc.appconn.McMessage.*;
@@ -51,8 +52,8 @@ public enum McMessageFactory {
             ifNotNull(fields.getMessageId(), () -> msg.putIe(new LongIe(McIe.MESSAGE_ID_IE, fields.getMessageId())));
             ifNotNull(fields.getImsi(), ()->msg.putIe(new ByteArrayIe(McIe.IMSI_IE, fields.getImsi())));
             ifNotNull(fields.getLmsi(), ()->msg.putIe(new ByteArrayIe(McIe.LMSI_IE, fields.getLmsi())));
-            ifNotNull(fields.getToGtName(), ()->msg.putIe(fields.toNameIe(McIe.GT_IE, fields.getToGtName(), fields.getToGtNameType())));
-            ifNotNull(fields.getServiceMsg(), ()->msg.putIe(new IntIe(McIe.SERVICE_MSG_IE, fields.getServiceMsg())));
+            ifNotNull(fields.getToGtName(), () -> msg.putIe(fields.toNameIe(McIe.GT_IE, fields.getToGtName())));
+            ifNotNull(fields.getServiceMsg(), () -> msg.putIe(new IntIe(McIe.SERVICE_MSG_IE, fields.getServiceMsg())));
             McMessage sriAsyncCall = new SrifsmRetAsyncCall(msg);
             return sriAsyncCall;
         }
@@ -106,10 +107,7 @@ public enum McMessageFactory {
             Fields fields = Fields.fromMetadata(metadata);
             //long messageId, Name gt, Name name, byte smRpPri
             McMessage sriCall =
-                    new SrifsmCall(fields.getMessageId(),
-                                  new Name(fields.getGtName(), fields.getGtNameType()),
-                                  new Name(fields.getName(), fields.getNameType()),
-                                  fields.getSmRpPri());
+                    new SrifsmCall(fields.getMessageId(), fields.getToGtName(), fields.getName(), fields.getSmRpPri());
             return sriCall;
         }
 
@@ -248,11 +246,7 @@ public enum McMessageFactory {
             Fields fields = Fields.fromMetadata(metadata);
             // long messageId, String imsi, String lmsi, Name toGt, byte[] tpdu
             McMessage fwmtCall =
-                    new ForwardSmOCall(fields.getMessageId(),
-                                       fields.getImsi(),
-                                       fields.getLmsi(),
-                                       new Name(fields.getToGtName(), fields.getToGtNameType()),
-                                       fields.getTpdu());
+                    new ForwardSmOCall(fields.getMessageId(), fields.getImsi(), fields.getLmsi(), fields.getToGtName(), fields.getTpdu());
             return fwmtCall;
         }
 
@@ -275,7 +269,7 @@ public enum McMessageFactory {
         @Override
         public McMessage fromMetadata(String[] metadata) {
             Fields fields = Fields.fromMetadata(metadata);
-            AlertServiceCentreCall ascCall = new AlertServiceCentreCall(new Name(fields.getName(), fields.getNameType()));
+            AlertServiceCentreCall ascCall = new AlertServiceCentreCall(fields.getName());
             return ascCall;
         }
 
@@ -334,24 +328,32 @@ public enum McMessageFactory {
     forwardSmICall {
         @Override
         public McMessage fromMetadata(String[] metadata) {
-            Fields fields = Fields.fromMetadata(metadata);
-            //Name fromGt, Name fromName, byte[] tpdu
-            McMessage fwmoCall =
-                new ForwardSmICall(new Name(fields.getFromGtName(), fields.getFromGtNameType()),
-                                   new Name(fields.getFromName(), fields.getFromNameType()),
-                                   fields.getTpdu());
-            return fwmoCall;
+            Fields  fields = Fields.fromMetadata(metadata);
+            McMessage fwsmiCall = new ForwardSmICall(fields.getSmppServiceType(),
+                                                     fields.getSmppScheduleDeliveryTime(),
+                                                     fields.getSmppReplaceIfPresentFlag(),
+                                                     fields.getSmppGwId(),
+                                                     fields.getSmppSessionId(),
+                                                     fields.getFromName(),
+                                                     fields.getTpdu());
+            return fwsmiCall;
         }
 
         @Override
         public McMsgToMetadataPredicate getMcMsgToMetadataPredicate() {
-            return (msg)->{
-                ForwardSmICall fwmoCall = new ForwardSmICall(msg);
-                return String.format("fromGt=%s|fromName=%s|tpdu=%s|smppServiceType=%s|smppScheduleDeliveryTime=%s|smppReplaceIfPresentFlag=%s|smppGwId=%s|smppSessionId=%s|appId=%s",
-                                     fwmoCall.getFromGt(), fwmoCall.getFromName(), tpduToString(fwmoCall.getTpdu()),
-                                     fwmoCall.getSmppServiceType(), fwmoCall.getSmppScheduleDeliveryTime(),
-                                     fwmoCall.getSmppReplaceIfPresentFlag(), fwmoCall.getSmppGwId(), fwmoCall.getSmppSessionId(),
-                                     fwmoCall.getAppId());
+            // TODO
+            // String smppServiceType, ZonedDateTime smppScheduleDeliveryTime, Byte smppReplaceIfPresentFlag, Integer smppGwId,
+            // Integer smppSessionId, Name fromName, byte[] tpdu
+            return msg -> {
+                ForwardSmICall fwsmiCall = new ForwardSmICall(msg);
+                return String.format("smppServiceType=%s|smppScheduleDeliveryTime=%s|smppReplaceIfPresentFlag=%s|smppGwId=%s|smppSessionId=%s|fromName=%s|tpud=%s",
+                                     fwsmiCall.getSmppServiceType(),
+                                     fwsmiCall.getSmppScheduleDeliveryTime(),
+                                     fwsmiCall.getSmppReplaceIfPresentFlag(),
+                                     fwsmiCall.getSmppGwId(),
+                                     fwsmiCall.getSmppSessionId(), 
+                                     fwsmiCall.getFromName(),
+                                     fwsmiCall.getTpdu());
             };
         }
 
@@ -403,6 +405,7 @@ public enum McMessageFactory {
     ;
 
     private static String tpduToString(byte[] tpdu) {
+        
         if (tpdu == null || tpdu.length == 0) {
             return null;
         }

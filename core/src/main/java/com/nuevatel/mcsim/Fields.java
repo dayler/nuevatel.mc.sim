@@ -9,6 +9,10 @@ import com.nuevatel.common.util.LongUtil;
 import com.nuevatel.common.util.StringUtils;
 import com.nuevatel.mc.appconn.Name;
 
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -23,31 +27,45 @@ public class Fields {
 
     private static Logger logger = LogManager.getLogger(Fields.class);
 
+    /**
+     * 2011-06-15 03:19:13
+     */
+    private static DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd hh:mm:ss");
+    
     private Long messageId = null;
     private Byte ret = null;
     private String imsi = null;
     private String lmsi = null;
-    private String toGtName = null;
-    private Byte toGtNameType = null;
+    
+    private Name toGtName = null;
+    
     private Integer serviceMsg = null;
 
-    private String name;
-    private Byte nameType;
+    private Name name;
 
     private Byte smRpPri;
 
     private byte[] tpdu;
 
-    private String fromGtName;
-    private Byte fromGtNameType;
-    private String fromName;
-    private Byte fromNameType;
+    private Name fromGtName;
+    
+    private Name fromName = null;
+    
+    private Name gtName = null;
+    
+    private Name toName = null;
 
-    private String gtName;
-    private Byte gtNameType;
-
-    private String toName;
-    private Byte toNameType;
+    private String smppServiceType;
+    private ZonedDateTime smppScheduleDeliveryTime;
+    
+    /**
+     * 0: Don't replace
+     * 1: Replace
+     */
+    private Byte smppReplaceIfPresentFlag = (byte)0x00;
+    private Integer smppGwId;
+    private Integer smppSessionId;
+    private Integer appId;
 
     public Long getMessageId() {
         return messageId;
@@ -64,27 +82,19 @@ public class Fields {
     public String getLmsi() {
         return lmsi;
     }
-
-    public String getToGtName() {
+    
+    public Name getToGtName() {
         return toGtName;
     }
-
-    public Byte getToGtNameType() {
-        return toGtNameType;
-    }
-
+    
     public Integer getServiceMsg() {
         return serviceMsg;
     }
-
-    public String getName() {
+    
+    public Name getName() {
         return name;
     }
-
-    public Byte getNameType() {
-        return nameType;
-    }
-
+    
     public Byte getSmRpPri() {
         return smRpPri;
     }
@@ -92,47 +102,57 @@ public class Fields {
     public byte[] getTpdu() {
         return tpdu;
     }
-
-    public String getFromGtName() {
+    
+    public Name getFromGtName() {
         return fromGtName;
     }
-
-    public Byte getFromGtNameType() {
-        return fromGtNameType;
-    }
-
-    public String getFromName() {
+    
+    public Name getFromName() {
         return fromName;
     }
-
-    public Byte getFromNameType() {
-        return fromNameType;
-    }
-
-    public String getGtName() {
+    
+    public Name getGtName() {
         return gtName;
     }
 
-    public Byte getGtNameType() {
-        return gtNameType;
-    }
-
-    public String getToName() {
+    public Name getToName() {
         return toName;
     }
 
-    public Byte getToNameType() {
-        return toNameType;
-    }
-
-    public Ie toNameIe(int code, String name, byte type) {
+    public Ie toNameIe(int code, Name name) {
         CompositeIe ie = new CompositeIe(code);
-        if (name != null) ie.putIe(new ByteArrayIe(NAME_NAME_IE, name));
-        ie.putIe(new ByteIe(NAME_TYPE_IE, type));
+        if (name != null) {
+            ie.putIe(new ByteArrayIe(NAME_NAME_IE, name.getName()));
+        }
+        ie.putIe(new ByteIe(NAME_TYPE_IE, name.getType()));
         return ie;
     }
 
-    private byte[] toTpduArray(String rawData) {
+    public Integer getAppId() {
+        return appId;
+    }
+
+    public Integer getSmppSessionId() {
+        return smppSessionId;
+    }
+
+    public Integer getSmppGwId() {
+        return smppGwId;
+    }
+
+    public Byte getSmppReplaceIfPresentFlag() {
+        return smppReplaceIfPresentFlag;
+    }
+
+    public ZonedDateTime getSmppScheduleDeliveryTime() {
+        return smppScheduleDeliveryTime;
+    }
+
+    public String getSmppServiceType() {
+        return smppServiceType;
+    }
+
+    private static byte[] toTpduArray(String rawData) {
         if (StringUtils.isBlank(rawData)) {
             return null;
         }
@@ -147,7 +167,7 @@ public class Fields {
         return tpdu;
     }
     
-    private Name makeName(String strMetadata) {
+    private static Name makeName(String strMetadata) {
         if (StringUtils.isBlank(strMetadata) || !strMetadata.startsWith("[") || !strMetadata.endsWith("]")) {
             // no parse field
             return null;
@@ -158,8 +178,10 @@ public class Fields {
             // no parseable field
             return null;
         }
-        Integer tmpType = IntegerUtil.tryParse(metadata[1].substring(" type=".length(), metadata[1].length()));
-        return new Name(metadata[0].substring("name=".length(), metadata[0].length()), tmpType == null ? 0 : tmpType.byteValue());
+        // getName
+        Integer type = IntegerUtil.tryParse(Arrays.stream(metadata).filter(e -> e.startsWith("type=")).findFirst().get());
+        String name = Arrays.stream(metadata).map(e -> e.trim()).filter(e -> e.startsWith("name=")).findFirst().get();
+        return new Name(name, type == null ? 0 : type.byteValue());
     }
     
     public static Fields fromMetadata(String[] metadata) {
@@ -171,71 +193,10 @@ public class Fields {
             {
                 continue;
             }
-
+    
             try {
                 // String kv1 = "NULL".equalsIgnoreCase(kv[1]) ? null : kv[1];
-                switch (FieldName.fromName(kv[0])) {
-                    case messageId:
-                        f.messageId = LongUtil.tryParse(kv[1]);
-                        break;
-                    case ret:
-                        f.ret = IntegerUtil.toByteValue(IntegerUtil.tryParse(kv[1]));
-                        break;
-                    case imsi:
-                        f.imsi = kv[1];
-                        break;
-                    case lmsi:
-                        f.lmsi = kv[1];
-                        break;
-                    case toGtName:
-                        f.toGtName = kv[1];
-                        break;
-                    case toGtNameType:
-                        f.toGtNameType = IntegerUtil.toByteValue(IntegerUtil.tryParse(kv[1]));
-                        break;
-                    case serviceMsg:
-                        f.serviceMsg = IntegerUtil.tryParse(kv[1]);
-                        break;
-                    case name:
-                        f.name = kv[1];
-                        break;
-                    case nameType:
-                        f.nameType = IntegerUtil.toByteValue(IntegerUtil.tryParse(kv[1]));
-                        break;
-                    case smRpPri:
-                        f.smRpPri = IntegerUtil.toByteValue(IntegerUtil.tryParse(kv[1]));
-                        break;
-                    case tpdu:
-                        f.tpdu = f.toTpduArray(kv[1]);
-                        break;
-                    case fromGtName:
-                        f.fromGtName = kv[1];
-                        break;
-                    case fromGtNameType:
-                        f.fromGtNameType = IntegerUtil.toByteValue(IntegerUtil.tryParse(kv[1]));
-                        break;
-                    case fromName:
-                        // TODO resolve from [name, type]
-                        f.fromName = kv[1];
-                        break;
-                    case fromNameType:
-                        f.fromNameType = IntegerUtil.toByteValue(IntegerUtil.tryParse(kv[1]));
-                        break;
-                    case gtName:
-                        f.gtName = kv[1];
-                        break;
-                    case gtNameType:
-                        f.gtNameType = IntegerUtil.toByteValue(IntegerUtil.tryParse(kv[1]));
-                        break;
-                    case toName:
-                        f.toName = kv[1];
-                        break;
-                    case toNameType:
-                        f.toNameType = IntegerUtil.toByteValue(IntegerUtil.tryParse(kv[1]));
-                        break;
-                    default:
-                        // NA
-                }
+                FieldName.fromName(kv[0]).setProperty(kv[1], f);
             } catch (Throwable ex) {
                 logger.warn("Unknown field[{}].", kv[0], ex);
             }
@@ -244,28 +205,130 @@ public class Fields {
     }
 
     public enum FieldName {
-        messageId,
-        ret,
-        imsi,
-        lmsi,
-        toGtName,
-        toGtNameType,
-        serviceMsg,
-        name,
-        nameType,
-        smRpPri,
-        tpdu, // hexadecimal
-        fromGtName,
-        fromGtNameType,
-        fromName,
-        fromNameType,
-        gtName,
-        gtNameType,
-        toName,
-        toNameType,
+        messageId {
+            @Override
+            public void setProperty(String metadata, Fields fields) {
+                fields.messageId = LongUtil.tryParse(metadata);
+            }
+        },
+        ret {
+            @Override
+            public void setProperty(String metadata, Fields fields) {
+                fields.ret = IntegerUtil.toByteValue(IntegerUtil.tryParse(metadata));
+            }
+        },
+        imsi {
+            @Override
+            public void setProperty(String metadata, Fields fields) {
+                fields.imsi = metadata;
+            }
+        },
+        lmsi {
+            @Override
+            public void setProperty(String metadata, Fields fields) {
+                fields.lmsi = metadata;
+            }
+        },
+        toGtName {
+            @Override
+            public void setProperty(String metadata, Fields fields) {
+                fields.toGtName = makeName(metadata);
+            }
+        },
+        serviceMsg {
+            @Override
+            public void setProperty(String metadata, Fields fields) {
+                fields.serviceMsg = IntegerUtil.tryParse(metadata);
+            }
+        },
+        name {
+            @Override
+            public void setProperty(String metadata, Fields fields) {
+                fields.name = makeName(metadata);
+            }
+        },
+        smRpPri {
+            @Override
+            public void setProperty(String metadata, Fields fields) {
+                fields.smRpPri = IntegerUtil.toByteValue(IntegerUtil.tryParse(metadata));
+            }
+        },
+        tpdu {
+            @Override
+            public void setProperty(String metadata, Fields fields) {
+                fields.tpdu = toTpduArray(metadata);
+            }
+        }, // hexadecimal
+        fromGtName {
+            @Override
+            public void setProperty(String metadata, Fields fields) {
+                fields.fromGtName = makeName(metadata);
+            }
+        },
+        fromName {
+            @Override
+            public void setProperty(String metadata, Fields fields) {
+                fields.fromName = makeName(metadata);
+            }
+        },
+        gtName {
+            @Override
+            public void setProperty(String metadata, Fields fields) {
+                fields.gtName = makeName(metadata);
+            }
+        },
+        toName {
+            @Override
+            public void setProperty(String metadata, Fields fields) {
+                fields.toName = makeName(metadata);
+            }
+        },
+        
+        smppServiceType {
+            @Override
+            public void setProperty(String metadata, Fields fields) {
+                fields.smppServiceType = metadata;
+            }
+            
+        }, // String
+        smppScheduleDeliveryTime {
+            @Override
+            public void setProperty(String metadata, Fields fields) {
+                fields.smppScheduleDeliveryTime = ZonedDateTime.parse(metadata, formatter);
+            }
+        }, // ZonedDateTime
+        smppReplaceIfPresentFlag {
+            @Override
+            public void setProperty(String metadata, Fields fields) {
+                fields.smppReplaceIfPresentFlag = IntegerUtil.tryParse(metadata, 0x00).byteValue();
+            }
+        }, // boolean
+        smppGwId {
+            @Override
+            public void setProperty(String metadata, Fields fields) {
+                fields.smppGwId = IntegerUtil.tryParse(metadata);
+            }
+        }, // int
+        smppSessionId {
+            @Override
+            public void setProperty(String metadata, Fields fields) {
+                fields.smppSessionId = IntegerUtil.tryParse(metadata);
+            }
+        }, // int
+        appId {
+            @Override
+            public void setProperty(String metadata, Fields fields) {
+                fields.appId = IntegerUtil.tryParse(metadata);
+            }
+        }, // int
+        
         unknown,
         ;
-
+        
+        public void setProperty(String metadata, Fields fields) {
+            // Default. No op
+        }
+        
         public static FieldName fromName(String name) {
             try {
                 return valueOf(name);
