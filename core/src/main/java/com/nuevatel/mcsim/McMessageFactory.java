@@ -341,9 +341,6 @@ public enum McMessageFactory {
 
         @Override
         public McMsgToMetadataPredicate getMcMsgToMetadataPredicate() {
-            // TODO
-            // String smppServiceType, ZonedDateTime smppScheduleDeliveryTime, Byte smppReplaceIfPresentFlag, Integer smppGwId,
-            // Integer smppSessionId, Name fromName, byte[] tpdu
             return msg -> {
                 ForwardSmICall fwsmiCall = new ForwardSmICall(msg);
                 return String.format("smppServiceType=%s|smppScheduleDeliveryTime=%s|smppReplaceIfPresentFlag=%s|smppGwId=%s|smppSessionId=%s|fromName=%s|tpud=%s",
